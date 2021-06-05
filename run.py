@@ -23,7 +23,7 @@ while True:
         insta = InstaDM(username=account["username"],
                         password=account["password"], headless=False)
 
-        for i in range(2):
+        for i in range(10):
 
             if not usernames:
                 break

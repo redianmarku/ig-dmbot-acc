@@ -2,6 +2,7 @@ from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager as CM
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
@@ -86,6 +87,31 @@ class InstaDM(object):
     def login(self, username, password):
         # homepage
         self.driver.get('https://instagram.com/?hl=en')
+        login_button = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//button/div[text()='Log in']"))
+        )
+        login_button.click()
+        sleep(3)  # Wait for 3 seconds
+
+        # Wait for the username field to be present and enter the username
+        username_field = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.NAME, "username"))
+        )
+        username_field.send_keys(username)
+        sleep(2)  # Wait for 2 seconds before entering the password
+
+        # Wait for the password field to be present and enter the password
+        password_field = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.NAME, "password"))
+        )
+        password_field.send_keys(password)
+        sleep(2)  # Wait for 2 seconds before clicking the login button
+
+        # Click the login button
+        login_button = self.driver.find_element_by_xpath("//button[contains(., 'Log in')]")
+        login_button.click()
+        sleep(5)  # Wait for 5 seconds for post-login processing
+        
         self.__random_sleep__(3, 5)
         if self.__wait_for_element__(self.selectors['accept_cookies'], 'xpath', 10):
             self.__get_element__(

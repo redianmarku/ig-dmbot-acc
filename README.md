@@ -12,6 +12,4 @@ change account after it sends message to 10 usernames and then it will go to the
     in usernames.txt put you username list that you want to send dm.
 4.  Run the bot with this command --> `python run.py`
 
-## Donate Here: PayPal --> https://paypal.me/redidev.
-
 Thank You!

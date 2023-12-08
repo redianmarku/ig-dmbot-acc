@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from random import randint, uniform
@@ -85,77 +86,45 @@ class InstaDM(object):
             print(str(e))
 
     def login(self, username, password):
-        # homepage
-        self.driver.get('https://instagram.com/?hl=en')
-       
-        # Check if 'Log In' button is present
-        try:
-            login_button = WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located((By.XPATH, "//button/div[text()='Log in']"))
-            )
-            login_button.click()
-            sleep(3)
-        except TimeoutException:
-            logging.info("'Log In' button not found or not necessary.")
+        # Open Instagram login page
+        self.driver.get('https://instagram.com/accounts/login/?hl=en')
 
         try:
+            # Wait for the username field to be present and enter the username
             username_field = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.NAME, "username"))
             )
             username_field.send_keys(username)
-            password_field = self.driver.find_element_by_name("password")
+            sleep(2)  # Wait for 2 seconds before entering the password
+
+            # Wait for the password field to be present and enter the password
+            password_field = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.NAME, "password"))
+            )
             password_field.send_keys(password)
-            self.driver.find_element_by_xpath("//button[contains(., 'Log in')]").click()
-            sleep(5)
+            sleep(2)  # Wait for 2 seconds before clicking the login button
+
+            # Click the login button
+            login_button = self.driver.find_element_by_xpath("//button[contains(., 'Log in')]")
+            login_button.click()
+            sleep(5)  # Wait for 5 seconds for post-login processing
+
+            # Additional steps can be added here if needed (e.g., handling pop-ups after login)
+
+        except Exception as e:
+            logging.error(e)
+            print(f"Login failed: {e}")
+
+    def click_if_element_exists(self, by, value, timeout=5):
+        """Clicks an element if it exists within a specified timeout."""
+        try:
+            element = WebDriverWait(self.driver, timeout).until(
+                EC.presence_of_element_located((by, value))
+            )
+            element.click()
+            return True
         except TimeoutException:
-            logging.info("Already logged in or username field not found.")        
-
-        # Wait for the username field to be present and enter the username
-        username_field = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.NAME, "username"))
-        )
-        username_field.send_keys(username)
-        sleep(2)  # Wait for 2 seconds before entering the password
-
-        # Wait for the password field to be present and enter the password
-        password_field = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.NAME, "password"))
-        )
-        password_field.send_keys(password)
-        sleep(2)  # Wait for 2 seconds before clicking the login button
-
-        # Click the login button
-        login_button = self.driver.find_element_by_xpath("//button[contains(., 'Log in')]")
-        login_button.click()
-        sleep(5)  # Wait for 5 seconds for post-login processing
-        
-        self.__random_sleep__(3, 5)
-        if self.__wait_for_element__(self.selectors['accept_cookies'], 'xpath', 10):
-            self.__get_element__(
-                self.selectors['accept_cookies'], 'xpath').click()
-            self.__random_sleep__(3, 5)
-        if self.__wait_for_element__(self.selectors['home_to_login_button'], 'xpath', 10):
-            self.__get_element__(
-                self.selectors['home_to_login_button'], 'xpath').click()
-            self.__random_sleep__(5, 7)
-
-        # login
-        logging.info(f'Login with {username}')
-        self.__scrolldown__()
-        if not self.__wait_for_element__(self.selectors['username_field'], 'name', 10):
-            print('Login Failed: username field not visible')
-        else:
-            self.driver.find_element_by_name(
-                self.selectors['username_field']).send_keys(username)
-            self.driver.find_element_by_name(
-                self.selectors['password_field']).send_keys(password)
-            self.__get_element__(
-                self.selectors['button_login'], 'xpath').click()
-            self.__random_sleep__()
-            if self.__wait_for_element__(self.selectors['login_check'], 'xpath', 10):
-                print('Login Successful')
-            else:
-                print('Login Failed: Incorrect credentials')
+            return False
 
     def createCustomGreeting(self, greeting):
         # Get username and add custom greeting
@@ -169,11 +138,9 @@ class InstaDM(object):
         return greeting
 
     def typeMessage(self, user, message):
-        # Go to page and type message
-        if self.__wait_for_element__(self.selectors['next_button'], "xpath"):
-            self.__get_element__(
-                self.selectors['next_button'], "xpath").click()
-            self.__random_sleep__()
+        # Check for 'Not Now' button and click it if present
+        not_now_button_xpath = "//button[text()='Not Now']"  # Update this XPath as needed
+        self.click_if_element_exists(By.XPATH, not_now_button_xpath)
 
         if self.__wait_for_element__(self.selectors['textarea'], "xpath"):
             message_box = self.__get_element__(self.selectors['textarea'], "xpath")

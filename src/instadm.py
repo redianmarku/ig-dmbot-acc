@@ -9,6 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from random import randint, uniform
 from time import time, sleep
+import random
 import logging
 import sqlite3
 
@@ -88,6 +89,7 @@ class InstaDM(object):
     def login(self, username, password):
         # Open Instagram login page
         self.driver.get('https://instagram.com/accounts/login/?hl=en')
+        self.__random_sleep__(1, 3)
 
         try:
             # Wait for the username field to be present and enter the username
@@ -95,19 +97,19 @@ class InstaDM(object):
                 EC.presence_of_element_located((By.NAME, "username"))
             )
             username_field.send_keys(username)
-            sleep(2)  # Wait for 2 seconds before entering the password
+            self.__random_sleep__(1, 2)  # Wait 1 - 2 seconds before entering the password
 
             # Wait for the password field to be present and enter the password
             password_field = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.NAME, "password"))
             )
             password_field.send_keys(password)
-            sleep(2)  # Wait for 2 seconds before clicking the login button
+            self.__random_sleep__(1, 2)  # Wait 1 - 2 seconds before clicking the login button
 
             # Click the login button
             login_button = self.driver.find_element_by_xpath("//button[contains(., 'Log in')]")
             login_button.click()
-            sleep(5)  # Wait for 5 seconds for post-login processing
+            self.__random_sleep__(3, 5)  # Wait 3 - 5 seconds for post-login processing
 
             # Additional steps can be added here if needed (e.g., handling pop-ups after login)
 
@@ -145,6 +147,7 @@ class InstaDM(object):
         if self.__wait_for_element__(self.selectors['textarea'], "xpath"):
             message_box = self.__get_element__(self.selectors['textarea'], "xpath")
             message_box.click()
+            self.__random_sleep__(1, 2)
             message_box.send_keys(message)
             self.__random_sleep__()
 
@@ -153,6 +156,7 @@ class InstaDM(object):
             send_button.click()
             self.__random_sleep__(3, 5)
             print('Message sent successfully')
+            self.__random_sleep__(2, 4)
 
     def sendMessage(self, user, message, greeting=None):
         logging.info(f'Send message to {user}')
@@ -163,6 +167,7 @@ class InstaDM(object):
         try:
             # Type the username in the search box
             self.__wait_for_element__(self.selectors['search_user'], "name")
+            self.__random_sleep__(1, 2)
             self.__type_slow__(self.selectors['search_user'], "name", user)
             self.__random_sleep__(1, 2)
 
@@ -172,7 +177,7 @@ class InstaDM(object):
                 EC.presence_of_element_located((By.XPATH, first_user_checkbox_xpath))
             )
             first_user_checkbox.click()
-            self.__random_sleep__()
+            self.__random_sleep__(1, 3)
 
             # Use the new XPath to click the "Next" button
             next_button_xpath = "/html/body/div[2]/div/div/div[2]/div/div/div[1]/section/div/div[2]/div/div/div[1]/div[3]/div"
@@ -350,29 +355,37 @@ class InstaDM(object):
         return result
 
     def __type_slow__(self, element_tag, locator, input_text=''):
-        """Type the given input text"""
-        try:
-            self.__wait_for_element__(element_tag, locator, 5)
-            element = self.__get_element__(element_tag, locator)
-            actions = ActionChains(self.driver)
-            actions.click(element).perform()
-            for s in input_text:
-                element.send_keys(s)
-                sleep(uniform(0.005, 0.02))
+        element = self.__get_element__(element_tag, locator)
+        if element:
+            for character in input_text:
+                element.send_keys(character)
+                sleep(random.uniform(0.1, 0.3))  # Delay between key presses
 
-        except Exception as e:
-            logging.error(e)
-            print(f'Exception when __typeSlow__ : {e}')
+    def __random_sleep__(self, min_sleep=1, max_sleep=3):
+        sleep_time = random.uniform(min_sleep, max_sleep)
+        sleep(sleep_time)
 
-    def __random_sleep__(self, minimum=2, maximum=7):
-        t = randint(minimum, maximum)
-        logging.info(f'Wait {t} seconds')
-        sleep(t)
 
     def __scrolldown__(self):
         self.driver.execute_script(
             "window.scrollTo(0, document.body.scrollHeight);")
 
     def teardown(self):
+        self.__random_sleep__(1, 3)
         self.driver.close()
         self.driver.quit()
+
+    def __click_element__(self, element):
+        ActionChains(self.driver).move_to_element(element).perform()
+        self.__random_sleep__(0.5, 1.5)  # Pause before clicking
+        element.click()
+    
+    def __random_scroll__(self):
+        scroll_command = "window.scrollBy(0, arguments[0]);"
+        scroll_value = random.randint(-300, 300)  # Scroll up or down randomly
+        self.driver.execute_script(scroll_command, scroll_value)
+
+    def __click_random_element__(self, elements):
+        if elements:
+            random_element = random.choice(elements)
+            self.__click_element__(random_element)

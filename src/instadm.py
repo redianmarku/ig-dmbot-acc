@@ -2,14 +2,11 @@ from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager as CM
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from random import randint, uniform
 from time import time, sleep
-import random
 import logging
 import sqlite3
 
@@ -30,8 +27,8 @@ class InstaDM(object):
             "select_user": '//div[text()="{}"]',
             "name": "((//div[@aria-labelledby]/div/span//img[@data-testid='user-avatar'])[1]//..//..//..//div[2]/div[2]/div)[1]",
             "next_button": "//button/*[text()='Next']",
-            "textarea": "//div[@aria-label='Message' and @role='textbox']",
-            "send": "//div[@role='button' and text()='Send']"
+            "textarea": "//textarea[@placeholder]",
+            "send": "//button[text()='Send']"
         }
 
         # Selenium config
@@ -87,46 +84,35 @@ class InstaDM(object):
             print(str(e))
 
     def login(self, username, password):
-        # Open Instagram login page
-        self.driver.get('https://instagram.com/accounts/login/?hl=en')
-        self.__random_sleep__(1, 3)
+        # homepage
+        self.driver.get('https://instagram.com/?hl=en')
+        self.__random_sleep__(3, 5)
+        if self.__wait_for_element__(self.selectors['accept_cookies'], 'xpath', 10):
+            self.__get_element__(
+                self.selectors['accept_cookies'], 'xpath').click()
+            self.__random_sleep__(3, 5)
+        if self.__wait_for_element__(self.selectors['home_to_login_button'], 'xpath', 10):
+            self.__get_element__(
+                self.selectors['home_to_login_button'], 'xpath').click()
+            self.__random_sleep__(5, 7)
 
-        try:
-            # Wait for the username field to be present and enter the username
-            username_field = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.NAME, "username"))
-            )
-            username_field.send_keys(username)
-            self.__random_sleep__(1, 2)  # Wait 1 - 2 seconds before entering the password
-
-            # Wait for the password field to be present and enter the password
-            password_field = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.NAME, "password"))
-            )
-            password_field.send_keys(password)
-            self.__random_sleep__(1, 2)  # Wait 1 - 2 seconds before clicking the login button
-
-            # Click the login button
-            login_button = self.driver.find_element_by_xpath("//button[contains(., 'Log in')]")
-            login_button.click()
-            self.__random_sleep__(3, 5)  # Wait 3 - 5 seconds for post-login processing
-
-            # Additional steps can be added here if needed (e.g., handling pop-ups after login)
-
-        except Exception as e:
-            logging.error(e)
-            print(f"Login failed: {e}")
-
-    def click_if_element_exists(self, by, value, timeout=5):
-        """Clicks an element if it exists within a specified timeout."""
-        try:
-            element = WebDriverWait(self.driver, timeout).until(
-                EC.presence_of_element_located((by, value))
-            )
-            element.click()
-            return True
-        except TimeoutException:
-            return False
+        # login
+        logging.info(f'Login with {username}')
+        self.__scrolldown__()
+        if not self.__wait_for_element__(self.selectors['username_field'], 'name', 10):
+            print('Login Failed: username field not visible')
+        else:
+            self.driver.find_element_by_name(
+                self.selectors['username_field']).send_keys(username)
+            self.driver.find_element_by_name(
+                self.selectors['password_field']).send_keys(password)
+            self.__get_element__(
+                self.selectors['button_login'], 'xpath').click()
+            self.__random_sleep__()
+            if self.__wait_for_element__(self.selectors['login_check'], 'xpath', 10):
+                print('Login Successful')
+            else:
+                print('Login Failed: Incorrect credentials')
 
     def createCustomGreeting(self, greeting):
         # Get username and add custom greeting
@@ -139,24 +125,22 @@ class InstaDM(object):
             greeting = greeting + ", \n\n"
         return greeting
 
-    def typeMessage(self, user, message):
-        # Check for 'Not Now' button and click it if present
-        not_now_button_xpath = "//button[text()='Not Now']"  # Update this XPath as needed
-        self.click_if_element_exists(By.XPATH, not_now_button_xpath)
+    def typeMessage(self, user, message):     
+        # Go to page and type message
+        if self.__wait_for_element__(self.selectors['next_button'], "xpath"):
+            self.__get_element__(
+                self.selectors['next_button'], "xpath").click()
+            self.__random_sleep__()
 
         if self.__wait_for_element__(self.selectors['textarea'], "xpath"):
-            message_box = self.__get_element__(self.selectors['textarea'], "xpath")
-            message_box.click()
-            self.__random_sleep__(1, 2)
-            message_box.send_keys(message)
+            self.__type_slow__(self.selectors['textarea'], "xpath", message)
             self.__random_sleep__()
 
         if self.__wait_for_element__(self.selectors['send'], "xpath"):
-            send_button = self.__get_element__(self.selectors['send'], "xpath")
-            send_button.click()
+            self.__get_element__(self.selectors['send'], "xpath").click()
             self.__random_sleep__(3, 5)
             print('Message sent successfully')
-            self.__random_sleep__(2, 4)
+
 
     def sendMessage(self, user, message, greeting=None):
         logging.info(f'Send message to {user}')
@@ -165,50 +149,41 @@ class InstaDM(object):
         self.__random_sleep__(2, 4)
 
         try:
-            # Type the username in the search box
             self.__wait_for_element__(self.selectors['search_user'], "name")
-            self.__random_sleep__(1, 2)
             self.__type_slow__(self.selectors['search_user'], "name", user)
             self.__random_sleep__(1, 2)
-
-            # Use the full XPath to select the first checkbox in the results list
-            first_user_checkbox_xpath = "/html/body/div[2]/div/div/div[2]/div/div/div[1]/section/div/div[2]/div/div/div[2]/div[2]/div/div[1]/div[1]/div/div/div[3]/div/label/div/input"
-            first_user_checkbox = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, first_user_checkbox_xpath))
-            )
-            first_user_checkbox.click()
-            self.__random_sleep__(1, 3)
-
-            # Use the new XPath to click the "Next" button
-            next_button_xpath = "/html/body/div[2]/div/div/div[2]/div/div/div[1]/section/div/div[2]/div/div/div[1]/div[3]/div"
-            next_button = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, next_button_xpath))
-            )
-            next_button.click()
-            self.__random_sleep__()
 
             if greeting != None:
                 greeting = self.createCustomGreeting(greeting)
 
-            # Send message to the selected user
-            if greeting != None:
-                self.typeMessage(user, greeting + message)
+            # Select user from list
+            elements = self.driver.find_elements_by_xpath(
+                self.selectors['select_user'].format(user))
+            if elements and len(elements) > 0:
+                elements[0].click()
+                self.__random_sleep__()
+
+                if greeting != None:
+                    self.typeMessage(user, greeting + message)
+                else:
+                    self.typeMessage(user, message)
+
+                if self.conn is not None:
+                    self.cursor.execute(
+                        'INSERT INTO message (username, message) VALUES(?, ?)', (user, message))
+                    self.conn.commit()
+                self.__random_sleep__(5, 10)
+
+                return True
+
+            # In case user has changed his username or has a private account
             else:
-                self.typeMessage(user, message)
-
-            if self.conn is not None:
-                self.cursor.execute(
-                    'INSERT INTO message (username, message) VALUES(?, ?)', (user, message))
-                self.conn.commit()
-            self.__random_sleep__(5, 10)
-
-            return True
+                print(f'User {user} not found! Skipping.')
+                return False
 
         except Exception as e:
             logging.error(e)
-            print(f'Error sending message to {user}: {e}')
             return False
-
 
     def sendGroupMessage(self, users, message):
         logging.info(f'Send group message to {users}')
@@ -355,37 +330,29 @@ class InstaDM(object):
         return result
 
     def __type_slow__(self, element_tag, locator, input_text=''):
-        element = self.__get_element__(element_tag, locator)
-        if element:
-            for character in input_text:
-                element.send_keys(character)
-                sleep(random.uniform(0.1, 0.3))  # Delay between key presses
+        """Type the given input text"""
+        try:
+            self.__wait_for_element__(element_tag, locator, 5)
+            element = self.__get_element__(element_tag, locator)
+            actions = ActionChains(self.driver)
+            actions.click(element).perform()
+            for s in input_text:
+                element.send_keys(s)
+                sleep(uniform(0.005, 0.02))
 
-    def __random_sleep__(self, min_sleep=1, max_sleep=3):
-        sleep_time = random.uniform(min_sleep, max_sleep)
-        sleep(sleep_time)
+        except Exception as e:
+            logging.error(e)
+            print(f'Exception when __typeSlow__ : {e}')
 
+    def __random_sleep__(self, minimum=2, maximum=7):
+        t = randint(minimum, maximum)
+        logging.info(f'Wait {t} seconds')
+        sleep(t)
 
     def __scrolldown__(self):
         self.driver.execute_script(
             "window.scrollTo(0, document.body.scrollHeight);")
 
     def teardown(self):
-        self.__random_sleep__(1, 3)
         self.driver.close()
         self.driver.quit()
-
-    def __click_element__(self, element):
-        ActionChains(self.driver).move_to_element(element).perform()
-        self.__random_sleep__(0.5, 1.5)  # Pause before clicking
-        element.click()
-    
-    def __random_scroll__(self):
-        scroll_command = "window.scrollBy(0, arguments[0]);"
-        scroll_value = random.randint(-300, 300)  # Scroll up or down randomly
-        self.driver.execute_script(scroll_command, scroll_value)
-
-    def __click_random_element__(self, elements):
-        if elements:
-            random_element = random.choice(elements)
-            self.__click_element__(random_element)

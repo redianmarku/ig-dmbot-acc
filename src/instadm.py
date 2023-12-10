@@ -125,7 +125,7 @@ class InstaDM(object):
             greeting = greeting + ", \n\n"
         return greeting
 
-    def typeMessage(self, user, message):
+    def typeMessage(self, user, message):     
         # Go to page and type message
         if self.__wait_for_element__(self.selectors['next_button'], "xpath"):
             self.__get_element__(
@@ -140,6 +140,7 @@ class InstaDM(object):
             self.__get_element__(self.selectors['send'], "xpath").click()
             self.__random_sleep__(3, 5)
             print('Message sent successfully')
+
 
     def sendMessage(self, user, message, greeting=None):
         logging.info(f'Send message to {user}')
